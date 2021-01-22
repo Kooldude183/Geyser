@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@ import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.BiomeTranslator;
 import org.geysermc.connector.network.translators.EntityIdentifierRegistry;
 import org.geysermc.connector.network.translators.PacketTranslatorRegistry;
+import org.geysermc.connector.network.translators.collision.CollisionTranslator;
 import org.geysermc.connector.network.translators.effect.EffectRegistry;
 import org.geysermc.connector.network.translators.item.ItemRegistry;
 import org.geysermc.connector.network.translators.item.ItemTranslator;
@@ -54,7 +55,6 @@ import org.geysermc.connector.network.translators.sound.SoundRegistry;
 import org.geysermc.connector.network.translators.world.WorldManager;
 import org.geysermc.connector.network.translators.world.block.BlockTranslator;
 import org.geysermc.connector.network.translators.world.block.entity.BlockEntityTranslator;
-import org.geysermc.connector.network.translators.collision.CollisionTranslator;
 import org.geysermc.connector.network.translators.world.block.entity.SkullBlockEntityTranslator;
 import org.geysermc.connector.utils.DimensionUtils;
 import org.geysermc.connector.utils.LanguageUtils;
@@ -67,10 +67,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -88,6 +85,12 @@ public class GeyserConnector {
     public static final String NAME = "Geyser";
     public static final String GIT_VERSION = "DEV"; // A fallback for running in IDEs
     public static final String VERSION = "DEV"; // A fallback for running in IDEs
+    public static final String MINECRAFT_VERSION = "1.16.4 - 1.16.5";
+
+    /**
+     * Oauth client ID for Microsoft authentication
+     */
+    public static final String OAUTH_CLIENT_ID = "204cefd1-4818-4de1-b98d-513fae875d88";
 
     private static final String IP_REGEX = "\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b";
 
@@ -104,8 +107,8 @@ public class GeyserConnector {
     private final ScheduledExecutorService generalThreadPool;
 
     private BedrockServer bedrockServer;
-    private PlatformType platformType;
-    private GeyserBootstrap bootstrap;
+    private final PlatformType platformType;
+    private final GeyserBootstrap bootstrap;
 
     private Metrics metrics;
 
@@ -324,6 +327,38 @@ public class GeyserConnector {
 
     public void removePlayer(GeyserSession player) {
         players.remove(player);
+    }
+
+    /**
+     * Gets a player by their current UUID
+     *
+     * @param uuid the uuid
+     * @return the player or <code>null</code> if there is no player online with this UUID
+     */
+    public GeyserSession getPlayerByUuid(UUID uuid) {
+        for (GeyserSession session : players) {
+            if (session.getPlayerEntity().getUuid().equals(uuid)) {
+                return session;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Gets a player by their Xbox user identifier
+     *
+     * @param xuid the Xbox user identifier
+     * @return the player or <code>null</code> if there is no player online with this xuid
+     */
+    public GeyserSession getPlayerByXuid(String xuid) {
+        for (GeyserSession session : players) {
+            if (session.getAuthData() != null && session.getAuthData().getXboxUUID().equals(xuid)) {
+                return session;
+            }
+        }
+
+        return null;
     }
 
     public static GeyserConnector start(PlatformType platformType, GeyserBootstrap bootstrap) {
